@@ -20,7 +20,7 @@ MEL_KWARGS = {
 def get_layer_output_function(model, layer_name):
     input = model.get_layer('input').input
     output = model.get_layer(layer_name).output
-    f = K.function([input, K.learning_phase()], output)
+    f = K.function([input, K.learning_phase()], [output])
     return lambda x: f([x, 0]) # learning_phase = 0 means test
 
 def load_track(filename, enforce_shape=None):
