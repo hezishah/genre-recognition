@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from genre_recognizer import GenreRecognizer
 from common import GENRES
 import numpy as np
@@ -10,6 +11,10 @@ import tornado
 import tornado.ioloop
 import tornado.web
 from optparse import OptionParser
+import youtube_dl
+import urlparse
+            
+
 
 STATIC_PATH = os.path.join(os.path.dirname(__file__), 'static')
 UPLOADS_PATH = os.path.join(os.path.dirname(__file__), 'uploads')
@@ -19,12 +24,17 @@ genre_recognizer = None
 class MainHandler(tornado.web.RequestHandler):
 
     def get(self):
-        self.render(os.path.join(STATIC_PATH, 'index.html'))
+        self.render(os.path.join(STATIC_PATH, 'youtube.html'))
+        #self.render(os.path.join(STATIC_PATH, 'index.html'))
 
 class PlayHandler(tornado.web.RequestHandler):
 
     def get(self):
-        self.render(os.path.join(STATIC_PATH, 'play.html'))
+        self.render(os.path.join(STATIC_PATH, 'playTube.html'))
+
+class PlayTubeHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render(os.path.join(STATIC_PATH, 'playTube.html'))
 
 class UploadHandler(tornado.web.RequestHandler):
 
@@ -66,6 +76,63 @@ class UploadHandler(tornado.web.RequestHandler):
         return [((step + 1) * delta_t, get_genre_distribution(step))
                 for step in xrange(n_steps)]
 
+class YoutubeHandler(tornado.web.RequestHandler):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+    def post(self):
+        url = self.request.arguments['youtubeUrl'][0]
+        if not url.startswith('http'):
+            return
+        file_name = 'youtube'
+        file_extension = '.mp3'
+        file_uuid = str(uuid.uuid4())
+        uploaded_name = file_uuid + file_extension
+
+        if not os.path.exists(UPLOADS_PATH):
+            os.makedirs(UPLOADS_PATH)
+
+        uploaded_path = os.path.join(UPLOADS_PATH, uploaded_name)
+
+        self.ydl_opts['outtmpl'] = uploaded_path
+        with youtube_dl.YoutubeDL(self.ydl_opts) as ydl:
+            ydl.download([url])
+        (predictions, duration) = genre_recognizer.recognize(
+                uploaded_path)
+        genre_distributions = self.get_genre_distribution_over_time(
+                predictions, duration)
+        json_path = os.path.join(UPLOADS_PATH, file_uuid + '.json')
+        url_path = os.path.join(UPLOADS_PATH, file_uuid + '.url')
+        with open(url_path, 'w') as f:
+            url_data = urlparse.urlparse(url)
+            query = urlparse.parse_qs(url_data.query)
+            video = query["v"][0]
+            f.write(video)
+        with open(json_path, 'w') as f:
+            f.write(json.dumps(genre_distributions))
+        self.finish('"{}"'.format(file_uuid))
+
+    def get_genre_distribution_over_time(self, predictions, duration):
+        '''
+        Turns the matrix of predictions given by a model into a dict mapping
+        time in the song to a music genre distribution.
+        '''
+        predictions = np.reshape(predictions, np.shape(predictions)[2:])
+        n_steps = np.shape(predictions)[0]
+        delta_t = duration / n_steps
+
+        def get_genre_distribution(step):
+            return {genre_name: float(predictions[step, genre_index])
+                    for (genre_index, genre_name) in enumerate(GENRES)}
+
+        return [((step + 1) * delta_t, get_genre_distribution(step))
+                for step in xrange(n_steps)]
+
 application = tornado.web.Application([
     (r'/', MainHandler),
     (r'/play.html', PlayHandler),
@@ -76,6 +143,8 @@ application = tornado.web.Application([
         'path': UPLOADS_PATH
     }),
     (r'/upload', UploadHandler),
+    (r'/youtube', YoutubeHandler),
+    (r'/playTube.html', PlayTubeHandler),
 ], debug=True)
 
 if __name__ == '__main__':
