@@ -7,7 +7,7 @@ import librosa as lbr
 import keras.backend as K
 
 GENRES = ['blues', 'classical', 'country', 'disco', 'hiphop', 'jazz', 'metal',
-        'pop', 'reggae', 'rock']
+        'pop', 'reggae', 'rock', 'mizrahit']
 WINDOW_SIZE = 2048
 WINDOW_STRIDE = WINDOW_SIZE // 2
 N_MELS = 128
