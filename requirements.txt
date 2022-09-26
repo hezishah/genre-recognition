@@ -5,3 +5,4 @@ numpy==1.10.1
 pyyaml==3.12
 scipy==0.17.0
 tornado==4.3
+joblib>=1.2.0 # not directly required, pinned by Snyk to avoid a vulnerability
