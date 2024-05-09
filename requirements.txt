@@ -5,3 +5,5 @@ numpy==1.10.1
 pyyaml==3.12
 scipy==0.17.0
 tornado==4.3
+fonttools>=4.43.0 # not directly required, pinned by Snyk to avoid a vulnerability
+pillow>=10.3.0 # not directly required, pinned by Snyk to avoid a vulnerability
