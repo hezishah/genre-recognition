@@ -1,5 +1,5 @@
 h5py==2.6.0
-Keras==1.1.0
+Keras==3.9.0
 librosa==0.4.1
 numpy==1.10.1
 pyyaml==3.12
